@@ -1,0 +1,91 @@
+<div id="right">
+    <div class="edit_tpl"><a href="" class='set_model'></a></div> 
+    <php>
+        $where = array('uid' =>session('uid'));
+        $field = array('username','face80' =>'face' , 'follow','fans','weibo','uid');
+        $userinfo = M('userinfo')->where($where)->field($field)->find();
+    </php>
+
+    <dl class="user_face">
+        <dt>
+            <a href="{:U('/User/' . $userinfo['uid'])}">
+                <img src="<if condition="$userinfo['face']">__ROOT__/Uploads/Face/{$userinfo['face']}<else/>__PUBLIC__/Images/noface.gif</if>" width='80' height='80' alt="{$username}" />
+            </a>
+        </dt>
+        <dd>
+            <a href="{:U('/User/' . $userinfo['uid'])}">{$userinfo.username}</a>
+        </dd>
+    </dl>
+    <ul class='num_list'>
+        <li><a href="{:U('follow/' . $userinfo['uid'])}"><strong>{$userinfo.follow}</strong><span>关注</span></a></li>
+        <li><a href="{:U('fans/'   . $userinfo['uid'])}"><strong>{$userinfo.fans}</strong><span>粉丝</span></a></li>
+        <li class='noborder'>
+            <a href="{:U('/User/' . $userinfo['uid'])}"><strong>{$userinfo.weibo}</strong><span>微博</span></a>
+        </li>
+    </ul>
+
+    <div class="maybe">
+        <fieldset>
+            <?php
+                //获取感兴趣的人
+                $db = M('follow');
+                $where = array('fans'=>session('uid'));
+                $follow = $db->where($where)->field('follow')->select();
+                if($follow == ""){
+                    //没有数据
+                } else {
+                     foreach($follow as $k =>$v){
+                        $follow[$k] = $v['follow'];
+                    }
+                    $sql = 'SELECT `uid` , `username` ,`face50` AS  `face`,COUNT(f.`follow`) AS `count` FROM `hd_follow` f LEFT JOIN `hd_userinfo` u ON f.`follow` = u.`uid` WHERE f.`fans` IN (' . implode(',',$follow) .') AND f.`follow` NOT IN (' . implode(',',$follow) .') AND f.`follow` <> ' . session('uid') .' GROUP BY  f.`follow` ORDER BY `count` DESC LIMIT 4' ;
+
+                    $friend = $db->query($sql);
+
+                }
+            ?>
+            <legend>可能感兴趣的人</legend>
+            <ul>
+                <foreach name="friend" item="v" key="k">
+                    <li>
+                        <dl>
+                            <dt>
+                                <a href="{:U('/User/' . $v['uid'])}">
+                                    <img src="<if condition='$v["face"]'>__ROOT__/Uploads/Face/{$v["face"]}<else/>__PUBLIC__/Images/noface.gif</if>" width='30' height='30'/>
+                                </a>
+                            </dt>
+                            <dd><a href="{:U('/User/' . $v['uid'])}">{$v.username}</a></dd>
+                            <dd>共{$v.count}个共同好友</dd>
+                        </dl>
+                        <span class='heed_btn add-fl' uid='{$v.uid}'><strong>+&nbsp;</strong>关注</span>
+                    </li>
+                </foreach>
+            </ul>
+        </fieldset>
+    </div>
+    <?php
+        $hots = M('hots')->order('count desc')->limit(6)->select();
+    ?>
+    <div class="maybe">
+        <fieldset>
+            <legend>热门话题</legend>
+            <ul>
+                <li>
+                    <volist name="hots" id="v">
+                       <dl><a href="{:U('Search/sechWeibo')}?keyword={:$v['keyword']}">#{:$v['keyword']}#</a><span>{$v['count']}次</span></dl>
+                    </volist>
+                </li>
+            </ul>
+        </fieldset>
+    </div>
+
+    <div class="post">
+        <div class='post_line'>
+            <span>公告栏</span>
+        </div>
+        <ul>
+            <li><a href="">微博互动平台</a></li>
+            <li><a href="">微博可视化在线</a></li>
+            <li><a href="">微博交友平台</a></li>
+        </ul>
+    </div>
+</div>

@@ -1,0 +1,77 @@
+<script type="text/javascript">
+   			var runAjax = "{:U('seachAjax')}";
+            function seachAjax(id){    //user函数名 一定要和action中的第三个参数一致上面有
+                    var keyword = "<?php echo $_GET['keyword']; ?>";
+                    var id = id;
+                    $.get( runAjax , {'keyword':keyword, 'p':id}, function(data){  
+                    //用get方法发送信息到UserAction中的user方法
+                     $("#user").replaceWith("<div  id='user'>"+data+"</div>"); //user一定要和tpl中的一致
+                });
+             }
+            
+ </script>
+<if condition="isset($result)">
+         
+    		<div id='content'>	
+                <if condition='$result'>
+	    		<div class='view_line'>
+	                <strong>用户</strong>
+	            </div>
+
+            <ul>
+    <volist name="kyw_arr.result" id="vo">
+	           
+	    			<li>
+						<dl class='list-left'>
+							<dt>
+								<img src="
+                                <if condition='$vo["face80"]'>
+                                __ROOT__/Uploads/Face/{$vo.face80}
+                                <else/>
+                                __PUBLIC__/Images/noface.gif
+                                </if>" 
+                                width='80' height='80'/>
+							</dt>
+							<dd>
+		<a href="">{$vo.username|str_replace=$keyword, '<font style="color:red">' . $keyword . '</font>', ###}</a>
+							</dd>
+							<dd>
+								<i class='icon icon-boy'></i>&nbsp;
+								<span>
+									<if condition='$v["location"]'>
+                                    {$vo.location}
+                                    <else/>
+                                        用户所在地
+                                    </if>
+								</span>
+							</dd>
+							<dd>
+								<span>关注 <a href="">{$vo.follow}</a></span>
+								<span class='bd-l'>粉丝 <a href="">{$vo.fans}</a></span>
+								<span class='bd-l'>微博 <a href="">{$vo.weibo}</a></span>
+							</dd>
+						</dl>
+	    				<dl class='list-right'>
+	    					<if condition='$vo["mutual"]'>
+	    						<dt>互相关注</dt>
+	    						<dd class='del-follow' uid='{$vo.uid}' type='1'>移除</dd>
+    						<elseif condition='$vo["followed"]' />
+                            	<dt>√&nbsp;已关注</dt>
+                            	<dd class='del-follow' uid='{$vo.uid}' type='1'>移除</dd>
+                        	<else/>
+	    						<dt class='add-fl' uid='{$vo.uid}'>+&nbsp;关注</dt>
+	    					</if>
+	    				</dl>
+	    			</li>		
+    			
+    </volist>
+        </ul>
+          <div style="text-align:center;padding:20px;">{$Page}</div>
+        <else/>
+        <p style='text-indent:7em;'>未找到与
+        <strong style='color:red'>{$keyword}</strong>相关的用户</p>
+        
+        </div>
+        <!-- endcontent -->
+
+    </if>
