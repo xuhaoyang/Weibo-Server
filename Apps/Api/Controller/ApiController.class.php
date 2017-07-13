@@ -99,7 +99,7 @@ class ApiController extends Controller
     public function userLogin()
     {
         //$getToken = I('get.token');
-        $isToken = S($getToken);
+//        $isToken = S($getToken);
 //    	if($isToken)
 //    	{
         $encryptKey = 'weiboAppKey!@)$*)!$&)!$^!@^$(!H!@R!R';
@@ -125,7 +125,7 @@ class ApiController extends Controller
             /**
              * 为了照顾格式access_token 改成token
              */
-            S($accessToken, 1, 7200);
+            S($accessToken, $userInfo['id'], 7200);
         } else {
             $return['status'] = 'fail';
             $return['msg'] = '不存在该用户或账号密码错误';
@@ -151,42 +151,43 @@ class ApiController extends Controller
 //        $isToken = S($getToken);
 
 
-            $data = array(
-                'account' => I('post.account'),
-                'password' => I('post.password', '', 'md5'),
-                'registime' => $_SERVER['REQUEST_TIME'],
-                'userinfo' => array(
-                    //userinfo关联表 数据
-                    'username' => I('post.uname')
-                )
-            );
-            $count = M('user')->where(array('account' => $data['account']))->count();
-            if (!$count) {
-                if (empty($data['account'] || empty($data['uname']))) {
-                    $return['code'] = 0;
-                    $return['info'] = '请填写所注册的用户信息';
-                } else {
-                    $id = D('Home/UserRelation')->insert($data);
-                    if ($id) {
-                        $return['code'] = 200;
-                        $return['status'] = 'success';
-                        $return['msg'] = "注册成功";
-                    } else {
-                        $return['code'] = 200;
-                        $return['status'] = 'fail';
-                        $return['msg'] = '注册失败';
-                    }
-                }
-
+        $data = array(
+            'account' => I('post.account'),
+            'password' => I('post.password', '', 'md5'),
+            'registime' => $_SERVER['REQUEST_TIME'],
+            'userinfo' => array(
+                //userinfo关联表 数据
+                'username' => I('post.uname')
+            )
+        );
+        $count = M('user')->where(array('account' => $data['account']))->count();
+        if (!$count) {
+            if (empty($data['account'] || empty($data['uname']))) {
+                $return['code'] = 0;
+                $return['info'] = '请填写所注册的用户信息';
             } else {
-                $return['code'] = 200;
-                $return['status'] = 'fail';
-                $return['msg'] = '已存在该用户';
+                $id = D('Home/UserRelation')->insert($data);
+                if ($id) {
+                    $return['code'] = 200;
+                    $return['status'] = 'success';
+                    $return['msg'] = "注册成功";
+                } else {
+                    $return['code'] = 200;
+                    $return['status'] = 'fail';
+                    $return['msg'] = '注册失败';
+                }
             }
+
+        } else {
+            $return['code'] = 200;
+            $return['status'] = 'fail';
+            $return['msg'] = '已存在该用户';
+        }
 
 
         $this->ajaxReturn($return);
     }
+
 
     /**
      * 获取转发列表
@@ -432,79 +433,38 @@ class ApiController extends Controller
     }
 
     /**
+     * weibo地图信息测试
+     */
+    public function weiboTest()
+    {
+        $Weibo = D('WeiboRelation');
+        $uid = I('post.uid');
+
+        $where = array('fans' => $uid);
+        $result = M('follow')->field('follow')->where($where)->select();
+        if ($result) {
+            $uid = array();
+            foreach ($result as $key => $v) {
+                $uid[] = $v['follow'];
+            }
+        }
+
+        $where = array('id' => 34);
+
+        $db = D('Home/WeiboView');
+        $result2 = $db ->where($where)->select();
+        $result = $Weibo->relation(true)->where($where)->select();
+        $this->ajaxReturn($result);
+
+
+    }
+
+    /**
      * 获取当前用户的微博内容
      * weiboList.html?uid=用户ID&gid=分组ID（可不填则获取全部）&limit=数量限制（默认0，10）
      */
     public function weiboList()
     {
-
-//         $getToken = I('post.token');
-//         $isToken = S($getToken);
-//         if ($isToken) {
-
-//             $uid = I('post.uid');
-//             $limit = I('get.limit', '0,10');
-
-//             //存在分组ID则加入条件
-//             if (isset($_GET['gid'])) {
-//                 $gid = I('post.gid', '', 'int');
-//                 $fansMap['gid'] = $gid;
-//             }
-//             $fansMap['fans'] = $uid;
-
-//             //获取我关注的人的ID
-//             $uid = array();
-//             $result = M('follow')->field('follow')->where($fansMap)->select();
-//             if ($result) {
-//                 foreach ($result as $v) {
-//                     $uid[] = $v['follow'];
-//                 }
-//             }
-
-//             //某傻逼没吧自己加进去
-//             $uid[] = $fansMap['fans'];
-
-//             /**
-//              * 收藏的数据
-//              */
-//             $keepMap['uid'] = array("IN", I('get.uid'));
-//             $keepResult = M('keep')->field('id,uid,wid')->where($keepMap)->select();
-
-//             $userMap['uid'] = array('IN', $uid);
-//             $dbresult = D('Home/WeiboView')->getAll($userMap, $limit);
-
-//             /**
-//              * 构建良好的数据结构-.-
-//              */
-//             $result = array();
-//             foreach ($dbresult as $r) {
-//                 //判断微博是否已经被收藏
-//                 foreach ($keepResult as $k) {
-//                     if ($r['id'] == $k['wid']) {
-//                         $r['isKeep'] = true;
-//                     } else {
-//                         $r['isKeep'] = false;
-//                     }
-//                 }
-//                 if (is_array($r['isturn'])) {
-//                     $r['status'] = $r['isturn'];
-//                     unset($r['isturn']);
-//                 }
-//                 $result[] = $r;
-//             }
-
-//             if ($result) {
-//                 $return['code'] = 200;
-//                 $return['info'] = $result;
-//             } else {
-//                 $return['code'] = 0;
-// //                $return['error'] = '获取用户微博失败';
-//                 $return['error'] = '没有啦';
-//             }
-//         } else {
-//             $return['code'] = -1;
-//             $return['error'] = 'access_token已过期或者不存在';
-//         }
 
         $getToken = I('post.token');
         $isToken = S($getToken);
@@ -1221,6 +1181,61 @@ class ApiController extends Controller
     }
 
     /**
+     * 用户信息修改
+     * @method post
+     * @param token
+     * @param username 昵称
+     * @param truename 真实名字
+     * @param sex 性别
+     * @param intro 介绍
+     *
+     */
+    public function setUserInfo()
+    {
+
+        $getToken = I('post.token');
+        $isToken = S($getToken);
+
+        if ($isToken) {
+            $uid = I('post.uid');
+            $where = array('uid' => $uid);
+            $data = array();
+
+            if (isset($_POST['username'])) {
+                $data['username'] = I('post.username');
+            }
+
+            if (isset($_POST['truename'])) {
+                $data['truename'] = I('post.truename');
+            }
+
+            if (isset($_POST['sex'])) {
+                $data['sex'] = I('post.sex');
+            }
+
+            if (isset($_POST['intro'])) {
+                $data['intro'] = I('post.intro');
+            }
+
+            $User = D("userinfo");
+            $return['code'] = 200;
+            if ($User->where($where)->save($data)) {
+                $return['status'] = 'success';
+                $return['msg'] = '更新成功';
+            } else {
+                $return['status'] = 'fail';
+                $return['msg'] = '更新失败';
+            }
+
+        } else {
+            $return['code'] = -1;
+            $return['status'] = 'fail';
+            $return['msg'] = 'access_token已过期或者不存在';
+        }
+        $this->ajaxReturn($return);
+    }
+
+    /**
      * 获取用户信息
      * getUserInfo.html?uid=用户ID
      *
@@ -1244,7 +1259,8 @@ class ApiController extends Controller
                 }
             }
 
-            $field = array('username', 'face180' => 'face', 'follow', 'fans', 'weibo', 'uid', 'intro');
+            $field = array('username', 'face180' => 'face', 'follow', 'fans', 'weibo', 'uid',
+                'truename', 'sex', 'intro');
             $userinfo = M('userinfo')->where($where)->field($field)->find();
 
             if (isset($_POST['userid']) && I('post.userid')) {
@@ -1282,6 +1298,59 @@ class ApiController extends Controller
                 $return['status'] = 'fail';
                 $return['msg'] = '获取失败';
             }
+        } else {
+            $return['code'] = -1;
+            $return['status'] = 'fail';
+            $return['msg'] = 'access_token已过期或者不存在';
+        }
+        $this->ajaxReturn($return);
+    }
+
+    /**
+     * 修改密码
+     * post
+     * @param old_pwd
+     * @param new_pwd
+     * @param confirm_pwd
+     * @param token
+     */
+    public function changePwd()
+    {
+        $getToken = I('post.token');
+        $uid = S($getToken);//能读出当前token用户id
+        if ($uid) {
+            $old_pwd = I("post.old_pwd", '', 'md5');
+            $new_pwd = I("post.new_pwd", '', 'md5');
+
+
+            $User = M('user');
+            $where = array('id' => $uid);
+            $old = $User->field('password')->where($where)->find();
+
+            $return['code'] = 200;
+            if ($old['password'] != $old_pwd) {
+                $return['status'] = 'fail';
+                $return['msg'] = '原密码错误';
+            } else {
+                if ($_POST['new_pwd'] != $_POST['confirm_pwd']) {
+                    $return['status'] = 'fail';
+                    $return['msg'] = '请确保两次密码一致';
+                } elseif ($_POST['new_pwd'] == $_POST['old_pwd']) {
+                    $return['status'] = 'fail';
+                    $return['msg'] = '新密码不能与旧密码相通';
+                } else {
+                    $data = array('password' => $new_pwd);
+                    if ($User->where($where)->save($data)) {
+                        $return['status'] = 'success';
+                        $return['msg'] = '密码修改成功';
+                    } else {
+                        $return['status'] = 'fail';
+                        $return['msg'] = '密码修改失败';
+                    }
+                }
+            }
+
+
         } else {
             $return['code'] = -1;
             $return['status'] = 'fail';

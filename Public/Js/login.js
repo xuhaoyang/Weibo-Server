@@ -7,8 +7,8 @@ $(function () {
 	 * 以字母开头，5-17 字母、数字、下划线"_"
 	 */
 	jQuery.validator.addMethod("user", function(value, element) {
-		console.warn($('#account').val());   
-	    var tel = /^[a-zA-Z][\w]{4,16}$/;
+		// console.warn($('#account').val());
+	    var tel = /^[a-zA-Z][\w]{3,16}$/;
 	    return this.optional(element) || (tel.test(value));
 	}, " ");
 
