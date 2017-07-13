@@ -209,7 +209,6 @@ class ApiController extends Controller
 
             $count = M('weibo')->where($map)->join('hd_userinfo ON hd_weibo.uid = hd_userinfo.id')->count();
             $total = ceil($count / 10);
-//'hd_weibo.turn', 'hd_weibo.keep','hd_weibo.comment',
             $field = array('hd_weibo.id', 'hd_weibo.content', 'hd_weibo.time', 'hd_weibo.uid',
                 'hd_userinfo.username', 'hd_userinfo.face180' => 'face');
 
@@ -452,7 +451,7 @@ class ApiController extends Controller
         $where = array('id' => 34);
 
         $db = D('Home/WeiboView');
-        $result2 = $db ->where($where)->select();
+        $result2 = $db->where($where)->select();
         $result = $Weibo->relation(true)->where($where)->select();
         $this->ajaxReturn($result);
 
@@ -469,7 +468,9 @@ class ApiController extends Controller
         $getToken = I('post.token');
         $isToken = S($getToken);
         if ($isToken) {
-            $db = D('Home/WeiboView');
+//            $db = D('Home/WeiboView');
+            $db = D('WeiboRelation');
+
 
             if ($_POST['type']) {
                 $uid = I('post.uid');
@@ -515,7 +516,6 @@ class ApiController extends Controller
                     }
                 }
             }
-
             //组合WHERE条件,条件为当前用户自身ID与当前用户关注的所有好友的ID
             $where = array('uid' => array('IN', $uid));
 
@@ -536,7 +536,6 @@ class ApiController extends Controller
 //            $this->ajaxReturn($dbresult);
 
             $result = null;
-            $testresult = null;
             foreach ($dbresult as $r) {
                 //判断微博是否已经被收藏
                 foreach ($keepResult as $k) {

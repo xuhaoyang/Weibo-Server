@@ -28,10 +28,31 @@ class WeiboRelationModel extends RelationModel
             'foreign_key' => 'uid',
             'parent_key' => 'id',
         ),
-        'picture'=>array(
+        'picture' => array(
             'mapping_type' => self::HAS_ONE,
             'foreign_key' => 'wid'
         )
     );
+
+    /**
+     * 返回查询所有记录
+     * @param $where
+     * @param $limit
+     */
+    public function getAll($where, $limit)
+    {
+        $result = $this->relation(true)->where($where)->limit($limit)->order('time desc')->select();
+        //重组数组集数组，得到转发微博
+        if ($result) {
+            foreach ($result as $k => $v) {
+                //判断是否存在转发 不存在(已删除)赋为-1
+                if ($v['isturn']) {
+                    $tmp = $this->relation(true)->find($v['isturn']);
+                    $result[$k]['isturn'] = $tmp ? $tmp : -1;
+                }
+            }
+        }
+        return $result;
+    }
 
 }
