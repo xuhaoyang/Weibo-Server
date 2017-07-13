@@ -207,13 +207,17 @@ class ApiController extends Controller
             $limit = $page < 2 ? '0,10' : (10 * ($page - 1)) . ',10';
             $map['isturn'] = $wid;
 
-            $count = M('weibo')->where($map)->join('hd_userinfo ON hd_weibo.uid = hd_userinfo.id')->count();
+//            $count = M('weibo')->where($map)->join('hd_userinfo ON hd_weibo.uid = hd_userinfo.id')->count();
+            $count = D('WeiboRelation')->where($map)->count();
+//            $this->ajaxReturn($count == $count2);
+
             $total = ceil($count / 10);
             $field = array('hd_weibo.id', 'hd_weibo.content', 'hd_weibo.time', 'hd_weibo.uid',
                 'hd_userinfo.username', 'hd_userinfo.face180' => 'face');
 
-            $result = M('weibo')->where($map)->join('hd_userinfo ON hd_weibo.uid = hd_userinfo.id')
-                ->limit($limit)->field($field)->select();
+//            $result = M('weibo')->where($map)->join('hd_userinfo ON hd_weibo.uid = hd_userinfo.id')
+//                ->limit($limit)->field($field)->select();
+            $result = D('WeiboRelation')->relation('userinfo')->where($map)->limit($limit)->select();
 
             if ($result) {
                 $return['code'] = 200;
@@ -1559,9 +1563,9 @@ class ApiController extends Controller
                 $return['msg'] = '没有@你的人';
             } else {
                 $where = array('id' => array('IN', $wid));
-                $dbresult = D('Home/WeiboView')->getAll($where, $limit);
+                $dbresult = D('WeiboRelation')->getAll($where, $limit);
 
-                $count = D('Home/WeiboView')->where($where)->count();
+                $count = D('WeiboRelation')->where($where)->count();
                 $total = ceil($count / 10);
 
                 $where = array('uid' => $uid);;
@@ -1708,9 +1712,30 @@ class ApiController extends Controller
             $count = M('keep')->where(array('uid' => $uid))->count();
             $total = ceil($count / 10);
 
-            $where = array('keep.uid' => $uid);
+            $keepresult = M('keep')->where(array('uid' => $uid))->order('time desc')->select();
 
-            $weibo = D('Home/KeepView')->getAll($where, $limit);
+
+            /**
+             * 获得收藏的wid
+             */
+            foreach ($keepresult as $k => $v) {
+                $wid[] = $v['wid'];
+            }
+            $where = array('id' => array('IN', $wid));
+
+            $weiboresult = D('WeiboRelation')->getAll($where, $limit);
+            //处理kid ktime
+            $weibo = null;
+            foreach ($weiboresult as $r) {
+                foreach ($keepresult as $k) {
+                    if ($k['wid'] == $r['id']) {
+                        $r['kid'] = $k['id'];
+                        $r['ktime'] = $k['time'];
+
+                    }
+                }
+                $weibo[] = $r;
+            }
 
             $result = null;
             foreach ($weibo as $r) {
