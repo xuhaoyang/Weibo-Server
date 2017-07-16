@@ -15,7 +15,7 @@ class WeiboRelationModel extends RelationModel
     //定义主表名称
     protected $tableName = 'weibo';
 
-    protected $autoCheckFields = false;                //关闭虚拟模型
+//    protected $autoCheckFields = false;                //关闭虚拟模型
 
     protected $_link = array(
         'maps' => array(
@@ -33,6 +33,15 @@ class WeiboRelationModel extends RelationModel
             'foreign_key' => 'wid'
         )
     );
+    /**
+     * ,
+    'keep' => array(
+    'mapping_type' => self::BELONGS_TO,
+    'foreign_key' => 'uid',
+    'parent_key' => 'id',
+
+    )
+     */
 
     /**
      * 返回查询所有记录
@@ -53,6 +62,11 @@ class WeiboRelationModel extends RelationModel
             }
         }
         return $result;
+    }
+
+    public function getIsKeep($where,$limit){
+        $result = D('WeiboRelation')->relation(true)->where($where)->limit($limit)->select();
+
     }
 
 }

@@ -362,6 +362,87 @@ class ApiController extends Controller
         $this->ajaxReturn($return);
     }
 
+    /**
+     * 发布微博新接口
+     * @param header -> token
+     * @param json
+     */
+    public function sendWeibofromJson()
+    {
+
+        $getToken = $_SERVER['HTTP_TOKEN'];
+        $isToken = S($getToken);
+        if ($isToken) {
+            $json = $GLOBALS['HTTP_RAW_POST_DATA'];
+            $json = json_decode($json);
+
+            $json = get_object_vars($json);
+            $json['time'] = time();
+
+            foreach ($json as $k => $v) {
+                if ($v == false) {
+                    unset($json[$k]);
+                }
+            }
+
+            $map = get_object_vars($json['maps']);
+            $picture = get_object_vars($json['picture']);
+            unset($map['id']);
+            unset($picture['id']);
+//        $this->ajaxReturn(array(
+//            'weibo' => $json,
+//            'map' => $map,
+//            'pic' => $picture
+//        ));
+            if ($wid = M('weibo')->data($json)->add()) {
+                //插入地图数据
+                if ($map) {
+                    $map['wid'] = $wid;
+                    M('maps')->data($map)->add();
+                }
+
+                //插入图片数据
+                if ($picture) {
+                    $picture['wid'] = $wid;
+                    M('picture')->data($picture)->add();
+                }
+
+                //热门话题
+                if (preg_match_all('/#(.*)#/', $json['content'], $hots)) {
+                    $map['keyword'] = array('like', $hots[1][0] . '%');
+                    $count = M('hots')->where($map)->count();
+                    if ($count) {
+                        M('hots')->where($map)->setInc('count');
+                    } else {
+                        $data = array(
+                            'keyword' => $hots[1][0],
+                            'wid' => $wid
+                        );
+                        M('hots')->data($data)->add();
+                    }
+                }
+
+                //增加发布+1
+                M('userinfo')->where(array('uid' => session('uid')))->setInc('weibo');
+
+                //处理@用户
+                $this->_atmHandel($json['content'], $wid);
+
+                $return['code'] = 200;
+                $return['status'] = 'success';
+                $return['msg'] = '发布微博成功';
+            }else {
+                $return['code'] = 200;
+                $return['status'] = 'fail';
+                $return['msg'] = '发布微博失败';
+            }
+        } else {
+            $return['code'] = -1;
+            $return['status'] = 'fail';
+            $return['info'] = 'access_token已过期或者不存在';
+        }
+        $this->ajaxReturn($return);
+    }
 
     /**
      * 发布微博内容
@@ -1011,6 +1092,7 @@ class ApiController extends Controller
                 M('userinfo')->where(array('uid' => session('uid')))->setDec('weibo');
                 M('comment')->where(array('wid' => $wid))->delete();
                 M('hots')->where(array('wid' => $wid))->delete();
+                M('maps')->where(array('wid' => $wid))->delete();
 
                 $return['code'] = 200;
                 $return['status'] = 'success';
