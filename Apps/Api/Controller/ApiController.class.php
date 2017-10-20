@@ -3,6 +3,9 @@ namespace Api\Controller;
 
 use Think\Controller;
 
+Vendor('jpush.autoload');
+use JPush\Client as JPushClient;
+
 /**
  * Class ApiController
  * @package Api\Controller
@@ -10,6 +13,7 @@ use Think\Controller;
  */
 class ApiController extends Controller
 {
+
 
     /**
      * 获取ACCESSTOKEN
@@ -282,6 +286,23 @@ class ApiController extends Controller
 
     }
 
+    /**
+     * 测试推送
+     */
+    public function testJpush()
+    {
+        $jpush = new JPushClient(C('JPUSH.APP_KEY'), C('JPUSH.MASTER_SECRET'));
+        $response = $jpush->push()
+            ->setPlatform('all')
+//            ->addAllAudience()
+//            ->addAlias('xhyadmin1')
+            ->addRegistrationId('140fe1da9e9cd0be480')
+            ->setNotificationAlert('hello tp3.2')
+            ->send();
+        echo 'Result=' . json_encode($response);
+
+    }
+
 
     /**
      * 获取定时轮询推送
@@ -297,47 +318,18 @@ class ApiController extends Controller
             $msg = S('usermsg' . $uid);
             if ($msg) {
                 if ($msg['comment']['total']) {
-
                     $return['info']['comment'] = $msg['comment']['total'];
-                    //清空
-//                    set_msg($uid, 1, 1);
                 }
 
                 if ($msg['letter']['total']) {
 
                     $return['info']['letter'] = $msg['letter']['total'];
-                    //清空
-//                    set_msg($uid, 2, 1);
                 }
 
                 if ($msg['atme']['total']) {
                     $return['info']['atme'] = $msg['atme']['total'];
-                    //清空
-//                    set_msg($uid, 3, 1);
                 }
-//                if ($msg['comment']['status']) {
-//                    $msg['comment']['status'] = 0;
-//
-//                    /S('usermsg' . $uid, $msg, 0);/评论
-//                    $return['info']['comment'] = $msg['comment']['total'];
-//
-//                }
-//                if ($msg['letter']['status']) {
-//                    $msg['letter']['status'] = 0;
-//                    S('usermsg' . $uid, $msg, 0);
-//
-//                    $return['info']['letter'] = $msg['letter']['total'];
-//                    //私信
-//
-//
-//                }
-//                if ($msg['atme']['status']) {
-//                    $msg['atme']['status'] = 0;
-//                    S('usermsg' . $uid, $msg, 0);
-//                    //@人
-//                    $return['info']['atme'] = $msg['atme']['total'];
-//                }
-//                if ($return)
+
                 $return['code'] = 200;
                 if (count($return) == 1) {
                     $return['code'] = 0;
@@ -389,11 +381,7 @@ class ApiController extends Controller
             $picture = get_object_vars($json['picture']);
             unset($map['id']);
             unset($picture['id']);
-//        $this->ajaxReturn(array(
-//            'weibo' => $json,
-//            'map' => $map,
-//            'pic' => $picture
-//        ));
+
             if ($wid = M('weibo')->data($json)->add()) {
                 //插入地图数据
                 if ($map) {
@@ -426,12 +414,12 @@ class ApiController extends Controller
                 M('userinfo')->where(array('uid' => session('uid')))->setInc('weibo');
 
                 //处理@用户
-                $this->_atmHandel($json['content'], $wid);
+                $this->_atmHandel($json['content'], $wid, 1);
 
                 $return['code'] = 200;
                 $return['status'] = 'success';
                 $return['msg'] = '发布微博成功';
-            }else {
+            } else {
                 $return['code'] = 200;
                 $return['status'] = 'fail';
                 $return['msg'] = '发布微博失败';
@@ -521,25 +509,109 @@ class ApiController extends Controller
      */
     public function weiboTest()
     {
-        $Weibo = D('WeiboRelation');
-        $uid = I('post.uid');
+//        $Weibo = D('WeiboRelation');
+//        $uid = I('post.uid');
+//
+//        $where = array('fans' => $uid);
+//        $result = M('follow')->field('follow')->where($where)->select();
+//        if ($result) {
+//            $uid = array();
+//            foreach ($result as $key => $v) {
+//                $uid[] = $v['follow'];
+//            }
+//        }
+//
+//        $where = array('id' => 34);
+//
+//        $db = D('Home/WeiboView');
+//        $result2 = $db->where($where)->select();
+//        $result = $Weibo->relation(true)->where($where)->select();
+//        $this->ajaxReturn($result);
 
-        $where = array('fans' => $uid);
-        $result = M('follow')->field('follow')->where($where)->select();
-        if ($result) {
-            $uid = array();
-            foreach ($result as $key => $v) {
-                $uid[] = $v['follow'];
+        $getToken = $_SERVER['HTTP_TOKEN'];
+        $isToken = S($getToken);
+        if ($isToken) {
+            $json = $GLOBALS['HTTP_RAW_POST_DATA'];
+            $json = json_decode($json);
+
+            $json = get_object_vars($json);
+            $json['time'] = time();
+
+            foreach ($json as $k => $v) {
+                if ($v == false) {
+                    unset($json[$k]);
+                }
             }
+
+            $map = get_object_vars($json['maps']);
+            $picture = get_object_vars($json['picture']);
+            unset($map['id']);
+            unset($picture['id']);
+
         }
 
-        $where = array('id' => 34);
+        $type = 1;
+        $wid = 96;
+        $content = $json['content'];
+        $preg = '/@(\S+?)\s/is';
+        preg_match_all($preg, $content, $arr);
 
-        $db = D('Home/WeiboView');
-        $result2 = $db->where($where)->select();
-        $result = $Weibo->relation(true)->where($where)->select();
-        $this->ajaxReturn($result);
 
+        if (!empty($arr[1])) {
+            $db = M('userinfo');
+            $atme = M('atme');
+            $weibodb = M('weibo');
+
+            $result = $weibodb->where(array('id' => $wid))->field('uid,isturn')->select();
+            $suid = $result[0]['uid'];
+            if ($type == 3) {
+                //查询发起者用户id
+
+                $parent_wid = $result[0]['isturn'] ? $result[0]['isturn'] : $wid;
+
+                $parent_uid = $weibodb->where(array('id' => $parent_wid))->getField('uid');
+
+                if ($suid != 0 && $suid != $parent_uid) {
+                    //对原微博作者发起提醒
+                    push_message($suid, $parent_uid, $content, $type);
+                    $result = "对原微博作者发起提醒";
+                }
+            }
+
+            foreach ($arr[1] as $v) {
+
+                $ruid = $db->where(array('username' => $v))->getField('uid');
+
+                if ($suid == $ruid) {//本人@本人不提醒
+                    continue;
+                }
+                if ($parent_uid == $ruid) {//@到原微博作者不提醒
+                    continue;
+                }
+
+                if ($ruid) {
+                    $data = array(
+                        'wid' => $wid,
+                        'uid' => $ruid
+                    );
+
+                    //写入消息推送
+                    set_msg($ruid, 3);
+
+                    //推送消息插入数据库 等待推送
+                    $result2 = push_message($suid, $ruid, $content, $type);
+                    $atme->data($data)->add();
+                }
+            }
+        }
+        $this->ajaxReturn($result2);
+        /**
+         * array(
+         * 'weibo' => $json,
+         * 'map' => $map,
+         * 'pic' => $picture
+         * )
+         */
 
     }
 
@@ -853,34 +925,21 @@ class ApiController extends Controller
                     if ($db->data($cons)->add()) {
                         $db->where(array('id' => $weibo['id']))->setInc('turn');
                     }
-                    echo 1;
-                    exit();
 
                 }
 
-//                $this->ajaxReturn($data);
-                //组合评论样式字符串返回
-//                $str = '';
-//                $str .= '<dl class="comment_content">';
-//                $str .= '<dt><a href="' . U('/User/' . $data['uid']) . '">';
-//                $str .= '<img src="';
-//                $str .= __ROOT__;
-//                if ($user['face']) {
-//                    $str .= '/Uploads/Face/' . $user['face'];
-//                } else {
-//                    $str .= '/Public/Images/noface.gif';
-//                }
-//                $str .= '" alt="' . $user['username'] . '" width="30" height="30"/>';
-//                $str .= '</a></dt><dd>';
-//                $str .= '<a href="' . U('/User/' . $data['uid']) . '" class="comment_name">';
-//                $str .= '@' . $user['username'] . '</a> : ' . replace_weibo($data['content']);
-//                $str .= '&nbsp;&nbsp;( ' . time_format($data['time']) . ' )';
-//                $str .= '<div class="reply">';
-//                $str .= '<a href="">回复</a>';
-//                $str .= '</div></dd></dl>';
 
                 //写入消息推送
                 set_msg($weibo_uid, 1);
+                //处理@用户(@其他人)
+                $this->_atmHandel($data['content'], $data['wid'], 1);
+                $return['log'] = "uid:" . $data['uid'] . ",pid:" . $data['pid'];
+                //TODO 可能的bug是 转发的微博评论 会有错误
+                if ($data['uid'] != $data['pid']) {
+                    $return['log'] += ",开始推送给用户";
+                    push_message($data['uid'], $data['pid'], $data['content'], 2);
+                }
+
 
                 $return['code'] = 200;
                 $return['status'] = 'success';
@@ -898,6 +957,7 @@ class ApiController extends Controller
         $this->ajaxReturn($return);
     }
 
+
     /**
      * 转发微博
      * turnWeibo.html?uid=用户ID&wid=转发的微博ID&content=转发内容
@@ -908,6 +968,7 @@ class ApiController extends Controller
 
         $getToken = I('post.token');
         $isToken = S($getToken);
+
         if ($isToken) {
 
             $id = I('post.wid', '', 'int');
@@ -965,8 +1026,8 @@ class ApiController extends Controller
                     }
                 }
 
-                //处理@用户
-                $this->_atmHandel($data['content'], $wid);
+                //TODO 可能还有问题
+                $this->_atmHandel($data['content'], $wid, 3);
 
                 $return['code'] = 200;
                 $return['status'] = 'success';
@@ -1345,7 +1406,7 @@ class ApiController extends Controller
             }
 
             $field = array('username', 'face180' => 'face', 'follow', 'fans', 'weibo', 'uid',
-                'truename', 'sex', 'intro');
+                'truename', 'sex', 'intro', 'regid');
             $userinfo = M('userinfo')->where($where)->field($field)->find();
 
             if (isset($_POST['userid']) && I('post.userid')) {
@@ -1994,7 +2055,119 @@ class ApiController extends Controller
     }
 
 
-    Private function _atmHandel($content, $wid)
+    public function setRegistrationID()
+    {
+        $getToken = I('post.token');
+        $uid = S($getToken);//能读出当前token用户id
+        if ($uid) {
+            $where = array('uid' => $uid);
+            $regid = I('post.regid');
+            $data = array('regid' => $regid);
+            $userinfo = M('userinfo');
+
+            $return['code'] = 200;
+            if ($userinfo->where($where)->save($data)) {
+                $return['status'] = 'success';
+                $return['msg'] = '更新regid成功';
+            } else {
+                $return['status'] = 'fail';
+                $return['msg'] = 'Regid修改失败/未修改';
+            }
+
+
+        } else {
+            $return['code'] = -1;
+            $return['status'] = 'fail';
+            $return['msg'] = 'access_token已过期或者不存在';
+        }
+        $this->ajaxReturn($return);
+    }
+
+    public function clearRegistrationID()
+    {
+        $getToken = I('post.token');
+        $uid = S($getToken);//能读出当前token用户id
+        if ($uid) {
+            $where = array('uid' => $uid);
+            $data = array('regid' => null);
+            $userinfo = M('userinfo');
+
+            $userinfo->where($where)->save($data);
+            $return['code'] = 200;
+            $return['status'] = 'success';
+            $return['msg'] = '清空regid成功';
+
+        } else {
+            $return['code'] = -1;
+            $return['status'] = 'fail';
+            $return['msg'] = 'access_token已过期或者不存在';
+        }
+        $this->ajaxReturn($return);
+    }
+
+
+    public function weibotest2()
+    {
+        $content = "3//@XHY__2 :测试转发";
+        $wid = 58;
+        $type = 3;
+        $preg = '/@(\S+?)\s/is';
+        preg_match_all($preg, $content, $arr);
+
+
+        if (!empty($arr[1])) {
+            $db = M('userinfo');
+            $atme = M('atme');
+            $weibodb = M('weibo');
+
+
+            //查询发起者用户id
+            $result = $weibodb->where(array('id' => $wid))->field('uid,isturn')->select();
+            $suid = $result[0]['uid'];
+            $parent_wid = $result[0]['isturn'] ? $result[0]['isturn'] : $wid;
+
+            $parent_uid = $weibodb->where(array('id' => $parent_wid))->getField('uid');
+
+            if ($suid != 0 && $suid != $parent_uid) {
+                //对原微博作者发起提醒
+                push_message($suid, $parent_uid, $content, $type);
+                $result = "对原微博作者发起提醒";
+            }
+
+            foreach ($arr[1] as $v) {
+
+                $ruid = $db->where(array('username' => $v))->getField('uid');
+                if ($suid = $ruid) {//本人@本人不提醒
+                    continue;
+                }
+                if ($parent_uid = $ruid) {//@到原微博作者不提醒
+                    continue;
+                }
+                if ($ruid) {
+                    $data = array(
+                        'wid' => $wid,
+                        'uid' => $ruid
+                    );
+
+                    //写入消息推送
+                    set_msg($ruid, 3);
+
+                    //推送消息插入数据库 等待推送
+                    $result2 = push_message($suid, $ruid, $content, $type);
+                    $atme->data($data)->add();
+                }
+            }
+        }
+        $this->ajaxReturn($result);
+    }
+
+    /**
+     * @param $content 内容
+     * @param $wid
+     * @param $type 1发送微博;2评论微博;3转发微博
+     * @return bool
+     */
+    Private function _atmHandel($content, $wid, $type)
     {
         $preg = '/@(\S+?)\s/is';
         preg_match_all($preg, $content, $arr);
@@ -2002,17 +2175,45 @@ class ApiController extends Controller
         if (!empty($arr[1])) {
             $db = M('userinfo');
             $atme = M('atme');
+            $weibodb = M('weibo');
+
+            $result = $weibodb->where(array('id' => $wid))->field('uid,isturn')->select();
+            $suid = $result[0]['uid'];
+            if ($type == 3) {
+                //查询发起者用户id
+
+                $parent_wid = $result[0]['isturn'] ? $result[0]['isturn'] : $wid;
+                $parent_uid = $weibodb->where(array('id' => $parent_wid))->getField('uid');
+
+                if ($suid != 0 && $suid != $parent_uid) {
+                    //对原微博作者发起提醒
+                    push_message($suid, $parent_uid, $content, $type);
+                    $result = "对原微博作者发起提醒";
+                }
+            }
+
             foreach ($arr[1] as $v) {
-                $uid = $db->where(array('username' => $v))->getField('uid');
-                if ($uid) {
+
+                $ruid = $db->where(array('username' => $v))->getField('uid');
+
+                if ($suid == $ruid) {//本人@本人不提醒
+                    continue;
+                }
+                if ($parent_uid == $ruid) {//@到原微博作者不提醒
+                    continue;
+                }
+
+                if ($ruid) {
                     $data = array(
                         'wid' => $wid,
-                        'uid' => $uid
+                        'uid' => $ruid
                     );
 
                     //写入消息推送
-                    set_msg($uid, 3);
+                    set_msg($ruid, 3);
 
+                    //推送消息插入数据库 等待推送
+                    $result2 = push_message($suid, $ruid, $content, $type);
                     $atme->data($data)->add();
                 }
             }

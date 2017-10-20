@@ -15,5 +15,9 @@ return array(
         'UserAtme/:username'=>'User/index',
         'follow/:uid\d'     =>array('User/followList','type=1'),
         'fans/:uid\d'       =>array('User/followList','type=0'),
+    ),
+    'JPUSH' => array(
+        'APP_KEY' => 'ab23b913c2726818bf2a9c6a',
+        'MASTER_SECRET' => '77d05fe2bbc767d16a36071d'
     )
 );
