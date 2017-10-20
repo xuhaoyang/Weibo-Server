@@ -1028,11 +1028,12 @@ class ApiController extends Controller
                 }
 
                 //TODO 可能还有问题
-                $this->_atmHandel($data['content'], $wid, 3);
+                $debug = $this->_atmHandel($data['content'], $wid, 3);
 
                 $return['code'] = 200;
                 $return['status'] = 'success';
                 $return['msg'] = '转发微博成功';
+                $return['debug'] = $debug;
             } else {
                 $return['code'] = 200;
                 $return['status'] = 'fail';
@@ -2178,28 +2179,40 @@ class ApiController extends Controller
      */
     Private function _atmHandel($content, $wid, $type)
     {
+        $db = M('userinfo');
+        $atme = M('atme');
+        $weibodb = M('weibo');
+
         $preg = '/@(\S+?)\s/is';
         preg_match_all($preg, $content, $arr);
 
-        if (!empty($arr[1])) {
-            $db = M('userinfo');
-            $atme = M('atme');
-            $weibodb = M('weibo');
+        $result['arr'] = $arr;
 
+        if ($type == 3) {
+            //查询发起者用户id
             $result = $weibodb->where(array('id' => $wid))->field('uid,isturn')->select();
             $suid = $result[0]['uid'];
-            if ($type == 3) {
-                //查询发起者用户id
+            $result['suid'] = $suid;
 
-                $parent_wid = $result[0]['isturn'] ? $result[0]['isturn'] : $wid;
-                $parent_uid = $weibodb->where(array('id' => $parent_wid))->getField('uid');
+            $parent_wid = $result[0]['isturn'] ? $result[0]['isturn'] : $wid;
+            $parent_uid = $weibodb->where(array('id' => $parent_wid))->getField('uid');
+            $result['parent_wid'] = $parent_wid;
+            $result['parent_uid'] = $parent_uid;
 
-                if ($suid != 0 && $suid != $parent_uid) {
-                    //对原微博作者发起提醒
-                    push_message($suid, $parent_uid, $content, $type);
-                    $result = "对原微博作者发起提醒";
-                }
+            if ($suid != 0 && $suid != $parent_uid) {
+                //对原微博作者发起提醒
+                push_message($suid, $parent_uid, $content, $type);
+//                    $result = "对原微博作者发起提醒";
             }
+        }
+
+
+        if (!empty($arr[1])) {
+
+            //查询发起者用户id
+            $result = $weibodb->where(array('id' => $wid))->field('uid,isturn')->select();
+            $suid = $result[0]['uid'];
+            $result['suid'] = $suid;
 
             foreach ($arr[1] as $v) {
 
@@ -2227,7 +2240,7 @@ class ApiController extends Controller
                 }
             }
         }
-        return true;
+        return $result;
     }
 
     /**
