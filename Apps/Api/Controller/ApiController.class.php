@@ -23,14 +23,14 @@ class ApiController extends Controller
         $encryptKey = 'weiboAppKey!@)$*)!$&)!$^!@^$(!H!@R!R';
         $encryptCode = 'WEIBOTOKEN' . ',' . time();
         $accessToken = encrypt($encryptCode, $encryptKey);
-
+        $time = 60 * 60 * 24 * 7;
         if ($accessToken) {
             $return['code'] = 200;
             $return['info'] = array(
                 'access_token' => $accessToken,
-                'expires_in' => 7200
+                'expires_in' => $time
             );
-            S($accessToken, 1, 7200);
+            S($accessToken, 1, $time);
         } else {
             $return['code'] = 0;
             $return['info'] = '获取access_token失败';
@@ -119,17 +119,18 @@ class ApiController extends Controller
         $return['code'] = 200;
         if ($userInfo) {
             $accessToken = encrypt($encryptCode, $encryptKey);
+            $time = 60 * 60 * 24 * 7;
 
             $return['status'] = 'success';
             $return['msg'] = '登录成功';
             $return['info'] = $userInfo + array(
                     'token' => $accessToken,
-                    'expires_in' => 7200
+                    'expires_in' => $time
                 );
             /**
              * 为了照顾格式access_token 改成token
              */
-            S($accessToken, $userInfo['id'], 7200);
+            S($accessToken, $userInfo['id'], $time);
         } else {
             $return['status'] = 'fail';
             $return['msg'] = '不存在该用户或账号密码错误';
@@ -2061,7 +2062,15 @@ class ApiController extends Controller
         $uid = S($getToken);//能读出当前token用户id
         if ($uid) {
             $where = array('uid' => $uid);
-            $regid = I('post.regid');
+            if (isset($_POST['regid'])) {
+                $regid = I('post.regid');
+            } else {
+                $return['code'] = 200;
+                $return['status'] = 'fail';
+                $return['msg'] = 'regid不能为空';
+                $this->ajaxReturn($return);
+
+            }
             $data = array('regid' => $regid);
             $userinfo = M('userinfo');
 

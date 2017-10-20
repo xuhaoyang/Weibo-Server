@@ -137,12 +137,15 @@ function push_message($suid, $ruid, $content, $type)
     /**
      * id suid ruid content type status
      */
+    $time = date("Y-m-d H:i:s");
     $data = array(
         'suid' => $suid,
         'ruid' => $ruid,
         'content' => $content,
         'type' => $type,
-        'status' => 0
+        'status' => 0,
+        'createAt' => $time,
+        'updateAt' => $time
     );
     $result = $push_message_db->data($data)->add();
     return $result;
