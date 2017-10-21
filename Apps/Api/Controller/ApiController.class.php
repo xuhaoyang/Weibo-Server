@@ -288,19 +288,95 @@ class ApiController extends Controller
     }
 
     /**
-     * 测试推送
+     * 推送 用于定时任务访问执行
      */
-    public function testJpush()
+    public function JPUSH()
     {
         $jpush = new JPushClient(C('JPUSH.APP_KEY'), C('JPUSH.MASTER_SECRET'));
-        $response = $jpush->push()
+
+        $return = [];
+        $pushmessage = M('pushmessage');
+        $userinfo = M('userinfo');
+        $where = array(
+            'status' => 0
+        );
+        $result = $pushmessage->where($where)->order('createAt')->limit(2)->select();
+        //TODO 推送失败的晚些时候做
+//        $this->ajaxReturn($result);
+
+        //处理推送
+        foreach ($result as $k) {
+            $recive_uid = $k['ruid'];
+
+            $result_temp = $userinfo->where(array('uid' => $recive_uid))->find();
+//            $this->ajaxReturn($result_temp);
+            $extras = array();
+
+            if ($result_temp['regid']) {
+                $send_uid = $userinfo->where(array('uid' => $k['suid']))->find();
+                if ($k['type'] == 1) {
+                    $extras['title'] = $send_uid['username'] . ' 提到你';
+                    $extras['msg'] = $k['content'];
+                    $extras['type'] = 2;
+                } else if ($k['type'] == 2) {
+                    $extras['title'] = '@' . $send_uid['username'];
+                    $extras['msg'] = "评论你:" . $k['content'];
+                    $extras['type'] = 1;
+
+                } else if ($k['type'] == 3) {
+                    $extras['title'] = '@' . $send_uid['username'];
+                    $extras['msg'] = "评论你:" . $k['content'];
+                    $extras['type'] = 2;
+                }
+
+                $data = [
+                    'extras' => $extras
+                ];
+
+                //推送
+                $response = $jpush->push()->setPlatform('all')
+                    ->addRegistrationId($result_temp['regid'])
+                    ->message('test', $data)->options(array('apns_production' => true))
+                    ->send();
+
+                //推送是否成功并写入状态
+                if ($response['http_code']==200){
+                    $pushmessage->where(array('id' => $k['id']))->save(array('status' => 1));
+                }else{
+                    $pushmessage->where(array('id' => $k['id']))->save(array('status' => 2));
+
+                }
+                $return[] = $response;
+            } else {
+                //用户没有绑定regid 就是没有登陆过客户端
+                $result['fail'] = $pushmessage->where(array('id' => $k['id']))->save(array('status' => 3));
+            }
+
+
+        }
+
+        $this->ajaxReturn($return);
+    }
+
+    public function testJpush2()
+    {
+        $jpush = new JPushClient(C('JPUSH.APP_KEY'), C('JPUSH.MASTER_SECRET'));
+
+        $result = $jpush->push()
             ->setPlatform('all')
-//            ->addAllAudience()
-//            ->addAlias('xhyadmin1')
             ->addRegistrationId('140fe1da9e9cd0be480')
-            ->setNotificationAlert('hello tp3.2')
+            ->message('test', [
+//                'title' => 'Hello',
+//                'content_type' => 'text',
+                'extras' => [
+                    'title' => 'XHY__2 提到了你',
+                    'msg' => 'hahaha',
+                    'type' => 1
+                ]
+            ])->options(array('apns_production' => true))
             ->send();
-        echo 'Result=' . json_encode($response);
+
+        $this->ajaxReturn($result);
 
     }
 
@@ -2228,8 +2304,14 @@ class ApiController extends Controller
                 if ($ruid) {
                     $data = array(
                         'wid' => $wid,
-                        'uid' => $ruid
+                        'uid' => $ruid,
+                        'status' => 0
                     );
+
+                    if ($type == 1) $data['type'] = 1;
+                    if ($type == 2) $data['type'] = 2;
+                    if ($type == 3) $data['type'] = 1;
+
 
                     //写入消息推送
                     set_msg($ruid, 3);
