@@ -340,9 +340,9 @@ class ApiController extends Controller
                     ->send();
 
                 //推送是否成功并写入状态
-                if ($response['http_code']==200){
+                if ($response['http_code'] == 200) {
                     $pushmessage->where(array('id' => $k['id']))->save(array('status' => 1));
-                }else{
+                } else {
                     $pushmessage->where(array('id' => $k['id']))->save(array('status' => 2));
 
                 }
@@ -1014,7 +1014,7 @@ class ApiController extends Controller
                 //TODO 可能的bug是 转发的微博评论 会有错误
                 if ($data['uid'] != $data['pid']) {
                     $return['log'] += ",开始推送给用户";
-                    push_message($data['uid'], $data['pid'], $data['content'], 2);
+                    $return['push_message'] = push_message($data['uid'], $data['pid'], $data['content'], 2);
                 }
 
 
@@ -2246,6 +2246,30 @@ class ApiController extends Controller
         }
         $this->ajaxReturn($result);
     }
+
+
+    public function getSettingList()
+    {
+        $json = '[{"config":1001,"dialogData":null,"functionConfig":0,"id":0,"mainHead":"常规设置","subHead":null,"weight":0},{"config":1002,"dialogData":null,"functionConfig":1102,"id":1,"mainHead":"通知设置","subHead":null,"weight":1},{"config":1002,"dialogData":null,"functionConfig":1102,"id":1,"mainHead":"用户设置","subHead":null,"weight":1},{"config":1002,"dialogData":null,"functionConfig":1102,"id":2,"mainHead":"意见反馈","subHead":null,"weight":2},{"config":1002,"dialogData":null,"functionConfig":1102,"id":3,"mainHead":"关于","subHead":null,"weight":3}]';
+
+        $json = json_decode($json,true);
+
+        foreach ($json as $k => $v) {
+            if ($v['id'] == 2) {
+                //干掉意见反馈
+                unset($json[$k]);
+            }
+        }
+
+        $return['code'] = 200;
+        $return['status'] = 'success';
+        $return['msg'] = '获得数据成功';
+        $return['info'] = array_values($json);
+
+        $this->ajaxReturn($return);
+
+    }
+
 
     /**
      * @param $content 内容
